@@ -10,6 +10,7 @@ FROM alpine:3.19
 RUN apk add --no-cache sqlite-libs ca-certificates
 WORKDIR /app
 COPY --from=builder /app/bin/monitor .
+COPY --from=builder /app/web ./web
 VOLUME ["/data"]
 EXPOSE 8080
 CMD ["./monitor"]
