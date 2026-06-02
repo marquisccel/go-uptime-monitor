@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Go Uptime Monitor</title>
+
+<style>
+:root {
+  --bg: #070b16;
+  --panel: rgba(17, 24, 39, 0.78);
+  --border: rgba(148, 163, 184, 0.16);
+  --text: #e5e7eb;
+  --muted: #94a3b8;
+  --green: #22c55e;
+  --red: #ef4444;
+  --yellow: #f59e0b;
+  --blue: #38bdf8;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top left, rgba(56,189,248,.18), transparent 32%),
+    radial-gradient(circle at top right, rgba(34,197,94,.12), transparent 28%),
+    radial-gradient(circle at bottom right, rgba(99,102,241,.10), transparent 32%),
+    var(--bg);
+  color: var(--text);
+  padding: 28px;
+}
+
+.container {
+  width: 95%;
+  max-width: 1800px;
+  margin: 0 auto;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.brand h1 {
+  font-size: 36px;
+  font-weight: 900;
+  letter-spacing: -0.045em;
+}
+
+.brand p {
+  color: var(--muted);
+  margin-top: 8px;
+  font-size: 15px;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.live-pill,
+.link-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--border);
+  background: rgba(17,24,39,.72);
+  backdrop-filter: blur(12px);
+  padding: 10px 14px;
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.link-pill:hover {
+  color: var(--text);
+  border-color: rgba(56,189,248,.4);
+}
+
+.link-pill.disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  color: var(--muted);
+}
+
+.link-pill.disabled:hover {
+  color: var(--muted);
+  border-color: var(--border);
+}
+
+.pulse {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--green);
+  animation: pulse 1.8s infinite;
+}
+
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(34,197,94,.7); }
+  70% { box-shadow: 0 0 0 10px rgba(34,197,94,0); }
+  100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); }
+}
+
+.hero {
+  background: linear-gradient(135deg, rgba(17,24,39,.90), rgba(2,6,23,.85));
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  padding: 24px;
+  margin-bottom: 20px;
+  box-shadow: 0 22px 80px rgba(0,0,0,.30);
+  backdrop-filter: blur(14px);
+}
+
+.hero-grid {
+  display: grid;
+  grid-template-columns: 1.2fr repeat(4, 1fr);
+  gap: 16px;
+  align-items: center;
+}
+
+.hero-title {
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.hero-desc {
+  color: var(--muted);
+  margin-top: 7px;
+  font-size: 14px;
+}
+
+.hero-metric {
+  background: rgba(2,6,23,.60);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 16px;
+}
+
+.hero-metric small {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+
+.hero-metric strong {
+  font-size: 28px;
+  letter-spacing: -0.04em;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(160px, 1fr));
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.stat-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 20px;
+  box-shadow: 0 18px 60px rgba(0,0,0,.22);
+  backdrop-filter: blur(12px);
+}
+
+.stat-label {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.stat-value {
+  margin-top: 12px;
+  font-size: 34px;
+  font-weight: 900;
+  letter-spacing: -0.04em;
+}
+
+.stat-hint {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.overview-bar {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  background: rgba(2,6,23,.58);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 12px;
+  margin-bottom: 26px;
+}
+
+.overview-item {
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(17,24,39,.72);
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  margin-right: 8px;
+}
+
+.dot.green { background: var(--green); }
+.dot.red { background: var(--red); }
+.dot.yellow { background: var(--yellow); }
+.dot.blue { background: var(--blue); }
+
+.section-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 26px 0 16px;
+}
+
+.section-title h2 {
+  font-size: 20px;
+}
+
+.section-title span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.main-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.8fr) 420px;
+  gap: 18px;
+  align-items: start;
+}
+
+.targets-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  gap: 16px;
+}
+
+.target-card,
+.side-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 18px;
+  box-shadow: 0 18px 60px rgba(0,0,0,.22);
+  backdrop-filter: blur(12px);
+  min-height: auto;
+}
+
+.target-card {
+  height: fit-content;
+}
+
+.side-card {
+  margin-bottom: 16px;
+}
+
+.target-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.target-name {
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.target-url {
+  margin-top: 7px;
+  color: var(--muted);
+  font-size: 13px;
+  word-break: break-all;
+}
+
+.badge {
+  flex-shrink: 0;
+  padding: 7px 11px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: .04em;
+}
+
+.badge.up {
+  background: rgba(34,197,94,.13);
+  color: var(--green);
+  border: 1px solid rgba(34,197,94,.32);
+}
+
+.badge.down {
+  background: rgba(239,68,68,.13);
+  color: var(--red);
+  border: 1px solid rgba(239,68,68,.32);
+}
+
+.metric-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 9px;
+  margin: 18px 0;
+}
+
+.metric {
+  background: rgba(2,6,23,.70);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px;
+}
+
+.metric small {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  margin-bottom: 7px;
+}
+
+.metric strong {
+  font-size: 16px;
+}
+
+.timeline {
+  display: grid;
+  grid-template-columns: repeat(24, 1fr);
+  gap: 4px;
+  margin: 14px 0 16px;
+}
+
+.tick {
+  height: 25px;
+  border-radius: 6px;
+  background: rgba(148,163,184,.16);
+}
+
+.tick.up { background: rgba(34,197,94,.88); }
+.tick.down { background: rgba(239,68,68,.88); }
+
+.chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 72px;
+  padding: 12px 0 4px;
+  margin-bottom: 20px;
+}
+
+.bar {
+  flex: 1;
+  min-width: 4px;
+  border-radius: 6px 6px 2px 2px;
+  background: linear-gradient(180deg, var(--blue), rgba(56,189,248,.22));
+}
+
+.card-actions {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  margin-top: 10px;
+}
+
+button {
+  border: none;
+  background: linear-gradient(
+    135deg,
+    #0284c7,
+    #38bdf8
+  );
+  color: #00111d;
+  padding: 12px 18px;
+  border-radius: 12px;
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow:
+    0 0 20px rgba(56,189,248,.25);
+  transition: .2s;
+}
+
+button:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 0 25px rgba(56,189,248,.35);
+}
+
+.last-check {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.side-card h3 {
+  font-size: 16px;
+  margin-bottom: 14px;
+}
+
+.activity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.activity-item {
+  display: grid;
+  grid-template-columns: 12px 1fr auto;
+  gap: 10px;
+  align-items: center;
+  background: rgba(2,6,23,.55);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 10px;
+}
+
+.activity-main {
+  font-size: 13px;
+}
+
+.activity-main strong {
+  display: block;
+}
+
+.activity-main span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 3px;
+}
+
+.activity-time {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.empty {
+  border: 1px dashed var(--border);
+  border-radius: 18px;
+  padding: 28px;
+  color: var(--muted);
+  text-align: center;
+  background: rgba(17,24,39,.50);
+}
+
+.footer {
+  margin-top: 36px;
+  color: var(--muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+.toast {
+  position: fixed;
+  right: 28px;
+  top: 28px;
+  width: 330px;
+  background: rgba(17,24,39,.95);
+  border: 1px solid rgba(239,68,68,.42);
+  border-left: 5px solid var(--red);
+  color: var(--text);
+  padding: 16px;
+  border-radius: 16px;
+  box-shadow: 0 25px 80px rgba(0,0,0,.35);
+  display: none;
+  z-index: 1000;
+}
+
+.toast strong {
+  display: block;
+  margin-bottom: 5px;
+}
+
+.toast span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+@media (max-width: 1150px) {
+  .hero-grid,
+  .main-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .stats,
+  .overview-bar {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 620px) {
+  body {
+    padding: 16px;
+  }
+
+  .header,
+  .header-actions,
+  .section-title {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .stats,
+  .overview-bar,
+  .metric-row {
+    grid-template-columns: 1fr;
+  }
+
+  .targets-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .brand h1 {
+    font-size: 29px;
+  }
+}
+</style>
+</head>
+
+<body>
+<div class="toast" id="toast">
+  <strong>Alert: Target Down</strong>
+  <span id="toastText">A monitored target is currently unreachable.</span>
+</div>
+
+<div class="container">
+  <header class="header">
+    <div class="brand">
+      <h1>Go Uptime Monitor</h1>
+      <p>Availability, latency, and infrastructure health monitoring platform.</p>
+    </div>
+
+    <div class="header-actions">
+      <a class="link-pill disabled" href="#" onclick="return false;">Grafana Not Running</a>
+      <div class="live-pill">
+        <span class="pulse"></span>
+        Auto refresh every 5s
+      </div>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div class="hero-grid">
+      <div>
+        <div class="hero-title">Infrastructure Monitoring Dashboard</div>
+        <div class="hero-desc">
+          Real-time target health, response latency, uptime timeline, and recent check activity.
+        </div>
+      </div>
+
+      <div class="hero-metric">
+        <small>Availability</small>
+        <strong id="heroAvailability">0%</strong>
+      </div>
+
+      <div class="hero-metric">
+        <small>Targets</small>
+        <strong id="heroTargets">0</strong>
+      </div>
+
+      <div class="hero-metric">
+        <small>Latest Scan</small>
+        <strong id="heroScan">-</strong>
+      </div>
+
+      <div class="hero-metric">
+        <small>Avg Latency</small>
+        <strong id="heroLatency">0ms</strong>
+      </div>
+    </div>
+  </section>
+
+  <section class="stats">
+    <div class="stat-card">
+      <div class="stat-label">Total Targets</div>
+      <div class="stat-value" id="totalTargets">0</div>
+      <div class="stat-hint">Registered monitored services</div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-label">Up</div>
+      <div class="stat-value" id="upTargets">0</div>
+      <div class="stat-hint">Currently reachable</div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-label">Down</div>
+      <div class="stat-value" id="downTargets">0</div>
+      <div class="stat-hint">Require attention</div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-label">Average Uptime</div>
+      <div class="stat-value" id="avgUptime">0%</div>
+      <div class="stat-hint">Based on recent checks</div>
+    </div>
+  </section>
+
+  <section class="overview-bar">
+    <div class="overview-item"><span class="dot green"></span>Healthy Targets: <strong id="overviewHealthy">0</strong></div>
+    <div class="overview-item"><span class="dot yellow"></span>Degraded: <strong id="overviewDegraded">0</strong></div>
+    <div class="overview-item"><span class="dot red"></span>Down: <strong id="overviewDown">0</strong></div>
+    <div class="overview-item"><span class="dot blue"></span>Coverage: <strong id="overviewCoverage">0%</strong></div>
+  </section>
+
+  <div class="section-title">
+    <h2>Monitored Targets</h2>
+    <span id="lastUpdated">Last updated: -</span>
+  </div>
+
+  <main class="main-grid">
+    <section class="targets-grid" id="targetsGrid">
+      <div class="empty">Loading monitored targets...</div>
+    </section>
+
+    <aside>
+      <div class="side-card">
+        <h3>Recent Activity</h3>
+        <div class="activity-list" id="activityList">
+          <div class="empty">Waiting for check results...</div>
+        </div>
+      </div>
+
+      <div class="side-card">
+        <h3>Platform Stack</h3>
+        <div class="activity-list">
+          <div class="activity-item"><span class="dot blue"></span><div class="activity-main"><strong>Go + Echo</strong><span>API service and monitoring engine</span></div></div>
+          <div class="activity-item"><span class="dot green"></span><div class="activity-main"><strong>SQLite</strong><span>Local persistence for targets and checks</span></div></div>
+          <div class="activity-item"><span class="dot yellow"></span><div class="activity-main"><strong>Prometheus</strong><span>Metrics endpoint available at /metrics</span></div></div>
+          <div class="activity-item"><span class="dot red"></span><div class="activity-main"><strong>Ansible Ready</strong><span>Deployment automation via connected repo</span></div></div>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <footer class="footer">
+    Go + Echo + SQLite + Prometheus metrics + Ansible deployment ready · Grafana integration planned
+  </footer>
+</div>
+
+<script>
+const targetsGrid = document.getElementById("targetsGrid");
+const activityList = document.getElementById("activityList");
+const previousStates = new Map();
+
+function fmtPercent(value) {
+  return `${Number(value || 0).toFixed(2)}%`;
+}
+
+function fmtLatency(value) {
+  return `${Math.round(Number(value || 0))}ms`;
+}
+
+function fmtDate(value) {
+  if (!value || value === "never") return "Never checked";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString();
+}
+
+function fmtTime(value) {
+  if (!value || value === "never") return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleTimeString();
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function normalizeLatency(value) {
+  return Number(value || 0);
+}
+
+function showToast(message) {
+  const toast = document.getElementById("toast");
+  document.getElementById("toastText").textContent = message;
+  toast.style.display = "block";
+  setTimeout(() => {
+    toast.style.display = "none";
+  }, 4500);
+}
+
+async function fetchHistory(targetId, limit = 24) {
+  try {
+    const response = await fetch(`/api/v1/targets/${targetId}/history`);
+    if (!response.ok) return [];
+    const data = await response.json();
+    return Array.isArray(data) ? data.slice(0, limit) : [];
+  } catch {
+    return [];
+  }
+}
+
+function renderTimeline(history) {
+  const checks = [...history].reverse().slice(-24);
+  while (checks.length < 24) checks.unshift(null);
+
+  return checks.map(item => {
+    if (!item) return `<div class="tick"></div>`;
+    return `<div class="tick ${item.is_up ? "up" : "down"}"></div>`;
+  }).join("");
+}
+
+function renderChart(history) {
+  const checks = [...history].reverse().slice(-18);
+  const latencies = checks.map(item => normalizeLatency(item.latency_ms));
+  const max = Math.max(...latencies, 1);
+
+  if (checks.length === 0) {
+    return `<div class="empty">No latency data yet</div>`;
+  }
+
+  return `
+    <div class="chart">
+      ${latencies.map(latency => {
+        const height = Math.max(8, Math.round((latency / max) * 68));
+        return `<div class="bar" style="height:${height}px" title="${Math.round(latency)}ms"></div>`;
+      }).join("")}
+    </div>
+  `;
+}
+
+function renderActivity(allActivities) {
+  const items = allActivities
+    .sort((a, b) => new Date(b.checked_at) - new Date(a.checked_at))
+    .slice(0, 10);
+
+  if (items.length === 0) {
+    activityList.innerHTML = `<div class="empty">No recent check activity yet.</div>`;
+    return;
+  }
+
+  activityList.innerHTML = items.map(item => `
+  <div class="activity-item">
+    <span class="dot ${item.is_up ? "green" : "red"}"></span>
+    <div class="activity-main">
+      <strong>${escapeHtml(item.name)} ${item.is_up ? "UP" : "DOWN"}</strong>
+      <span>${fmtLatency(item.latency_ms / 1000000)} · HTTP ${item.status_code || "-"}</span>
+    </div>
+    <div class="activity-time">${fmtTime(item.checked_at)}</div>
+  </div>
+`).join("");}
+
+async function loadDashboard() {
+  try {
+    const response = await fetch("/api/v1/status");
+    if (!response.ok) throw new Error("Failed to load status");
+
+    const data = await response.json();
+    const histories = {};
+    const activities = [];
+
+    for (const item of data) {
+      const targetId = item.target_id ?? item.id;
+      const history = await fetchHistory(targetId, 24);
+      histories[targetId] = history;
+
+      history.slice(0, 4).forEach(check => {
+        activities.push({ ...check, name: item.name });
+      });
+
+      const previous = previousStates.get(targetId);
+      if (previous === true && item.is_up === false) {
+        showToast(`${item.name} is DOWN. Check latency, endpoint, or network path.`);
+      }
+
+      previousStates.set(targetId, Boolean(item.is_up));
+    }
+
+    const total = data.length;
+    const up = data.filter(item => Boolean(item.is_up)).length;
+    const down = total - up;
+    const degraded = data.filter(item => item.is_up && Number(item.uptime_pct || 0) < 99).length;
+    const avgUptime = total
+      ? data.reduce((sum, item) => sum + Number(item.uptime_pct || 0), 0) / total
+      : 0;
+    const avgLatency = total
+      ? data.reduce((sum, item) => sum + Number(item.avg_latency_ms || 0), 0) / total
+      : 0;
+
+    document.getElementById("totalTargets").textContent = total;
+    document.getElementById("upTargets").textContent = up;
+    document.getElementById("downTargets").textContent = down;
+    document.getElementById("avgUptime").textContent = fmtPercent(avgUptime);
+
+    document.getElementById("heroAvailability").textContent = fmtPercent(avgUptime);
+    document.getElementById("heroTargets").textContent = total;
+    document.getElementById("heroScan").textContent = "5s";
+    document.getElementById("heroLatency").textContent = fmtLatency(avgLatency);
+
+    document.getElementById("overviewHealthy").textContent = up;
+    document.getElementById("overviewDegraded").textContent = degraded;
+    document.getElementById("overviewDown").textContent = down;
+    document.getElementById("overviewCoverage").textContent = total ? "100%" : "0%";
+
+    document.getElementById("lastUpdated").textContent =
+      `Last updated: ${new Date().toLocaleTimeString()}`;
+
+    renderActivity(activities);
+
+    if (total === 0) {
+      targetsGrid.innerHTML = `
+        <div class="empty">
+          No targets registered yet. Add targets using POST /api/v1/targets.
+        </div>
+      `;
+      return;
+    }
+
+    targetsGrid.innerHTML = data.map(item => {
+      const isUp = Boolean(item.is_up);
+      const targetId = item.target_id ?? item.id;
+      const history = histories[targetId] || [];
+
+      return `
+        <article class="target-card">
+          <div class="target-top">
+            <div>
+              <div class="target-name">${escapeHtml(item.name)}</div>
+              <div class="target-url">${escapeHtml(item.url)}</div>
+            </div>
+
+            <div class="badge ${isUp ? "up" : "down"}">
+              ${isUp ? "UP" : "DOWN"}
+            </div>
+          </div>
+
+          <div class="metric-row">
+            <div class="metric">
+              <small>Uptime</small>
+              <strong>${fmtPercent(item.uptime_pct)}</strong>
+            </div>
+
+            <div class="metric">
+              <small>Latency</small>
+              <strong>${fmtLatency(item.avg_latency_ms)}</strong>
+            </div>
+
+            <div class="metric">
+              <small>Target ID</small>
+              <strong>#${escapeHtml(targetId)}</strong>
+            </div>
+          </div>
+
+          <div class="timeline" title="Last 24 checks">
+            ${renderTimeline(history)}
+          </div>
+
+          ${renderChart(history)}
+
+          <div class="card-actions">
+            <button onclick="checkNow(${Number(targetId)})">Check Now</button>
+            <span class="last-check">
+              Last check: ${escapeHtml(fmtDate(item.last_check))}
+            </span>
+          </div>
+        </article>
+      `;
+    }).join("");
+  } catch (error) {
+    targetsGrid.innerHTML = `
+      <div class="empty">
+        Dashboard failed to load. Make sure the API is running on /api/v1/status.
+      </div>
+    `;
+    console.error(error);
+  }
+}
+
+async function checkNow(id) {
+  if (!id) return;
+
+  try {
+    await fetch(`/api/v1/targets/${id}/check`, { method: "POST" });
+    setTimeout(loadDashboard, 700);
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+loadDashboard();
+setInterval(loadDashboard, 5000);
+</script>
+</body>
+</html>
