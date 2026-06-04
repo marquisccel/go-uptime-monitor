@@ -21,6 +21,7 @@
 - Exposes a REST API for managing targets and querying history
 - Exports a `/metrics` endpoint for Prometheus scraping
 - Sends webhook alerts (Slack / Discord) when a target goes down — with a **5-minute cooldown** to prevent alert spam
+- Validates all input — rejects empty names, empty URLs, and non-http/https schemes with a clear error response
 
 ---
 
@@ -83,6 +84,20 @@ curl -X POST http://localhost:8080/api/v1/targets \
 
 ---
 
+## Input Validation
+
+The API enforces the following rules on `POST /api/v1/targets`:
+
+| Rule | Error response |
+|------|---------------|
+| `name` is empty | `{"error": "name is required"}` |
+| `url` is empty | `{"error": "url is required"}` |
+| `url` is not `http` or `https` | `{"error": "url must be a valid http or https URL"}` |
+
+All validation errors return HTTP `400 Bad Request`.
+
+---
+
 ## Configuration
 
 All options are set via environment variables (or `.env` file):
@@ -106,11 +121,11 @@ go-uptime-monitor/
 │       └── main.go             # Entry point
 ├── internal/
 │   ├── config/                 # Env-based configuration
-│   ├── handler/                # HTTP handlers (Echo)
+│   ├── handler/                # HTTP handlers (Echo) + input validation
 │   ├── checker/                # URL check logic + scheduler
 │   ├── repository/             # SQLite data access layer
 │   ├── model/                  # Domain types (Target, CheckResult, UptimeSummary)
-│   ├── alert/                  # Webhook alert sender (with cooldown)
+│   ├── alert/                  # Webhook alert sender (5-min cooldown)
 │   └── metrics/                # Prometheus metrics registration
 ├── web/
 │   └── index.html              # Built-in dashboard
@@ -155,5 +170,5 @@ This service is designed to be deployed via [ansible-server-bootstrap](https://g
 ---
 
 <p align="center">
-  <i>Deployed via <a href="https://github.com/egayurcel990/ansible-server-bootstrap">ansible-server-bootstrap</a> · Universitas Brawijaya · 2025</i>
+  <i>Deployed via <a href="https://github.com/egayurcel990/ansible-server-bootstrap">ansible-server-bootstrap</a> · Ega Yurcel Satriaji · 2025</i>
 </p>
