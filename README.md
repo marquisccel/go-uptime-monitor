@@ -1,7 +1,7 @@
 <h1 align="center">go-uptime-monitor</h1>
 
 <p align="center">
-  Lightweight self-hosted URL uptime monitor — checks endpoints on a schedule, stores history, exposes results via HTTP API.
+  Lightweight self-hosted URL uptime monitor — checks endpoints on a schedule, stores history, exposes results via HTTP API and a built-in dashboard.
 </p>
 
 <p align="center">
@@ -15,23 +15,31 @@
 
 ## What It Does
 
-- Periodically checks a list of URLs (configurable interval)
-- Records status code, latency, and up/down result to SQLite
-- Exposes results via a simple HTTP API
-- Exports `/metrics` endpoint for Prometheus scraping
-- Sends alert to webhook (Slack / Discord) when a target goes down
+- Periodically checks a list of URLs (configurable interval, per-target or global)
+- Records HTTP status code, latency, and up/down result to SQLite
+- Serves a built-in web dashboard at `/`
+- Exposes a REST API for managing targets and querying history
+- Exports a `/metrics` endpoint for Prometheus scraping
+- Sends webhook alerts (Slack / Discord) when a target goes down — with a **5-minute cooldown** to prevent alert spam
+
+---
+
+## Dashboard
+
+![Dashboard](docs/dashboard.png)
 
 ---
 
 ## API Endpoints
 
 | Method | Path | Description |
-|---|---|---|
+|--------|------|-------------|
 | `GET` | `/api/v1/targets` | List all monitored targets |
 | `POST` | `/api/v1/targets` | Add a new target URL |
 | `DELETE` | `/api/v1/targets/:id` | Remove a target |
-| `GET` | `/api/v1/targets/:id/history` | Get check history for a target |
-| `GET` | `/api/v1/status` | Overall uptime summary |
+| `GET` | `/api/v1/targets/:id/history` | Get check history (last 100) |
+| `POST` | `/api/v1/targets/:id/check` | Trigger an immediate check |
+| `GET` | `/api/v1/status` | Overall uptime summary (24h window) |
 | `GET` | `/metrics` | Prometheus metrics |
 | `GET` | `/healthz` | Health check |
 
@@ -39,19 +47,34 @@
 
 ## Quick Start
 
+### Docker (recommended)
+
 ```bash
-# Run with Docker
-docker run -p 8080:8080 \
+docker run -d \
+  --name uptime-monitor \
+  -p 127.0.0.1:8080:8080 \
   -e CHECK_INTERVAL=60 \
   -v $(pwd)/data:/data \
   ghcr.io/egayurcel990/go-uptime-monitor:latest
+```
 
-# Or build and run locally
+### Docker Compose
+
+```bash
+cp .env.example .env
+# Edit .env if needed
+docker compose up -d
+```
+
+### Build locally
+
+```bash
 go build -o bin/monitor ./cmd/monitor
 ./bin/monitor
 ```
 
-Add targets via API:
+Add a target:
+
 ```bash
 curl -X POST http://localhost:8080/api/v1/targets \
   -H "Content-Type: application/json" \
@@ -62,15 +85,15 @@ curl -X POST http://localhost:8080/api/v1/targets \
 
 ## Configuration
 
-Via environment variables:
+All options are set via environment variables (or `.env` file):
 
 | Variable | Default | Description |
-|---|---|---|
+|----------|---------|-------------|
 | `PORT` | `8080` | HTTP server port |
 | `DB_PATH` | `/data/uptime.db` | SQLite database path |
-| `CHECK_INTERVAL` | `60` | Default check interval (seconds) |
-| `CHECK_TIMEOUT` | `10` | HTTP request timeout (seconds) |
-| `WEBHOOK_URL` | — | Slack/Discord webhook for alerts |
+| `CHECK_INTERVAL` | `60` | Default check interval in seconds |
+| `CHECK_TIMEOUT` | `10` | HTTP request timeout in seconds |
+| `WEBHOOK_URL` | — | Slack or Discord webhook URL for alerts |
 
 ---
 
@@ -82,14 +105,16 @@ go-uptime-monitor/
 │   └── monitor/
 │       └── main.go             # Entry point
 ├── internal/
-│   ├── config/                 # Env-based config
-│   ├── handler/                # HTTP handlers
+│   ├── config/                 # Env-based configuration
+│   ├── handler/                # HTTP handlers (Echo)
 │   ├── checker/                # URL check logic + scheduler
-│   ├── repository/             # SQLite access layer
-│   ├── model/                  # Domain types (Target, CheckResult)
-│   ├── alert/                  # Webhook alert sender
-│   └── metrics/                # Prometheus metrics
-├── migrations/                 # SQL schema
+│   ├── repository/             # SQLite data access layer
+│   ├── model/                  # Domain types (Target, CheckResult, UptimeSummary)
+│   ├── alert/                  # Webhook alert sender (with cooldown)
+│   └── metrics/                # Prometheus metrics registration
+├── web/
+│   └── index.html              # Built-in dashboard
+├── docs/                       # Screenshots
 ├── Dockerfile
 ├── docker-compose.yml
 ├── .env.example
@@ -103,7 +128,7 @@ go-uptime-monitor/
 
 ```bash
 make build    # Compile binary to bin/monitor
-make run      # Run locally
+make run      # Run locally with go run
 make test     # Run unit tests
 make docker   # Build Docker image
 make lint     # Run golangci-lint
@@ -114,12 +139,18 @@ make lint     # Run golangci-lint
 ## Prometheus Metrics
 
 | Metric | Type | Description |
-|---|---|---|
-| `uptime_check_duration_seconds` | Histogram | HTTP check latency |
+|--------|------|-------------|
+| `uptime_check_duration_seconds` | Histogram | HTTP check latency per target |
 | `uptime_check_up` | Gauge | 1 = up, 0 = down per target |
-| `uptime_checks_total` | Counter | Total checks performed |
+| `uptime_checks_total` | Counter | Total checks performed per target |
 
 Pair with Grafana for a full monitoring dashboard.
+
+---
+
+## Deployment
+
+This service is designed to be deployed via [ansible-server-bootstrap](https://github.com/egayurcel990/ansible-server-bootstrap), which sets up a hardened Ubuntu server with Nginx reverse proxy, UFW firewall, and Docker — then pulls and runs this image automatically.
 
 ---
 

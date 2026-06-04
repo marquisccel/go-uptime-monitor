@@ -2,7 +2,9 @@ package handler
 
 import (
 	"net/http"
+	"net/url"
 	"strconv"
+	"strings"
 
 	"github.com/egayurcel990/go-uptime-monitor/internal/checker"
 	"github.com/egayurcel990/go-uptime-monitor/internal/model"
@@ -69,6 +71,20 @@ func (h *Handler) CreateTarget(c echo.Context) error {
 
 	if err := c.Bind(&t); err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request"})
+	}
+
+	t.Name = strings.TrimSpace(t.Name)
+	t.URL = strings.TrimSpace(t.URL)
+
+	if t.Name == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "name is required"})
+	}
+	if t.URL == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "url is required"})
+	}
+	parsed, err := url.ParseRequestURI(t.URL)
+	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "url must be a valid http or https URL"})
 	}
 
 	if t.Interval == 0 {
