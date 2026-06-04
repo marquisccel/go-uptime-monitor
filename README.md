@@ -31,6 +31,97 @@
 
 ---
 
+## Prerequisites
+
+You only need **Docker** installed on your machine to run this project.
+
+### Install Docker
+
+**Ubuntu / Debian / WSL:**
+```bash
+sudo apt update
+sudo apt install -y ca-certificates curl gnupg
+sudo install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
+  https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo $VERSION_CODENAME) stable" \
+  | sudo tee /etc/apt/sources.list.d/docker.list
+sudo apt update
+sudo apt install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+sudo usermod -aG docker $USER   # allow running docker without sudo
+newgrp docker                   # apply group change in current shell
+```
+
+**macOS:** Download and install [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+
+**Windows:** Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) (WSL 2 backend recommended)
+
+Verify:
+```bash
+docker --version         # e.g. Docker version 26.x.x
+docker compose version   # e.g. Docker Compose version v2.x.x
+```
+
+---
+
+## Quick Start
+
+### Option A — Pull from GHCR (recommended)
+
+No build needed, just pull and run:
+
+```bash
+docker run -d \
+  --name uptime-monitor \
+  -p 127.0.0.1:8080:8080 \
+  -e CHECK_INTERVAL=60 \
+  -v uptime_data:/data \
+  ghcr.io/egayurcel990/go-uptime-monitor:latest
+```
+
+Open **http://localhost:8080** in your browser.
+
+### Option B — Docker Compose
+
+```bash
+git clone https://github.com/egayurcel990/go-uptime-monitor
+cd go-uptime-monitor
+cp .env.example .env     # edit .env if you want to customize
+docker compose up -d
+```
+
+Open **http://localhost:8080** in your browser.
+
+### Option C — Build and run locally (requires Go 1.22+)
+
+```bash
+git clone https://github.com/egayurcel990/go-uptime-monitor
+cd go-uptime-monitor
+go build -o bin/monitor ./cmd/monitor
+./bin/monitor
+```
+
+---
+
+## Adding Your First Target
+
+Once the app is running, add a URL to monitor:
+
+```bash
+curl -X POST http://localhost:8080/api/v1/targets \
+  -H "Content-Type: application/json" \
+  -d '{"name": "My Site", "url": "https://example.com", "interval": 60}'
+```
+
+The dashboard will automatically refresh and show your new target. You can also trigger an immediate check:
+
+```bash
+# Replace 1 with the target ID returned above
+curl -X POST http://localhost:8080/api/v1/targets/1/check
+```
+
+---
+
 ## API Endpoints
 
 | Method | Path | Description |
@@ -46,50 +137,12 @@
 
 ---
 
-## Quick Start
-
-### Docker (recommended)
-
-```bash
-docker run -d \
-  --name uptime-monitor \
-  -p 127.0.0.1:8080:8080 \
-  -e CHECK_INTERVAL=60 \
-  -v $(pwd)/data:/data \
-  ghcr.io/egayurcel990/go-uptime-monitor:latest
-```
-
-### Docker Compose
-
-```bash
-cp .env.example .env
-# Edit .env if needed
-docker compose up -d
-```
-
-### Build locally
-
-```bash
-go build -o bin/monitor ./cmd/monitor
-./bin/monitor
-```
-
-Add a target:
-
-```bash
-curl -X POST http://localhost:8080/api/v1/targets \
-  -H "Content-Type: application/json" \
-  -d '{"name": "My Site", "url": "https://example.com", "interval": 60}'
-```
-
----
-
 ## Input Validation
 
 The API enforces the following rules on `POST /api/v1/targets`:
 
 | Rule | Error response |
-|------|---------------|
+|------|----------------|
 | `name` is empty | `{"error": "name is required"}` |
 | `url` is empty | `{"error": "url is required"}` |
 | `url` is not `http` or `https` | `{"error": "url must be a valid http or https URL"}` |
@@ -109,6 +162,30 @@ All options are set via environment variables (or `.env` file):
 | `CHECK_INTERVAL` | `60` | Default check interval in seconds |
 | `CHECK_TIMEOUT` | `10` | HTTP request timeout in seconds |
 | `WEBHOOK_URL` | — | Slack or Discord webhook URL for alerts |
+
+### Webhook Alerts
+
+Set `WEBHOOK_URL` to a Slack or Discord incoming webhook to receive alerts when a target goes down. Alerts have a **5-minute cooldown per target** to prevent spam — you'll get one notification when it goes down, and another when it recovers.
+
+**Slack:** Create an incoming webhook at https://api.slack.com/messaging/webhooks
+
+**Discord:** Go to your server → Edit Channel → Integrations → Webhooks → New Webhook → Copy URL
+
+---
+
+## Stopping and Removing
+
+```bash
+# Stop the container
+docker stop uptime-monitor
+
+# Start it again (data is preserved)
+docker start uptime-monitor
+
+# Remove container and data completely
+docker rm -f uptime-monitor
+docker volume rm uptime_data
+```
 
 ---
 
