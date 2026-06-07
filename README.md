@@ -1,74 +1,79 @@
 <h1 align="center">go-uptime-monitor</h1>
 
 <p align="center">
-  Lightweight self-hosted URL uptime monitor — checks endpoints on a schedule, stores history, exposes results via HTTP API and a built-in dashboard.
+  Self-hosted uptime monitoring service built with Go, SQLite, Docker, Prometheus metrics, and webhook alerts.
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/Go-1.22-00ADD8?style=flat-square&logo=go&logoColor=white" />
   <img src="https://img.shields.io/badge/SQLite-Database-003B57?style=flat-square&logo=sqlite&logoColor=white" />
-  <img src="https://img.shields.io/badge/Docker-2496ED?style=flat-square&logo=docker&logoColor=white" />
+  <img src="https://img.shields.io/badge/Docker-Containerized-2496ED?style=flat-square&logo=docker&logoColor=white" />
   <img src="https://img.shields.io/badge/Prometheus-Metrics-E6522C?style=flat-square&logo=prometheus&logoColor=white" />
 </p>
 
 ---
 
+## Portfolio Context
+
+This project is part of a DevOps and SysAdmin portfolio lab:
+
+- `go-uptime-monitor` is the application layer: API, dashboard, persistence, health checks, metrics, and alerting.
+- [`ansible-server-bootstrap`](https://github.com/egayurcel990/ansible-server-bootstrap) is the infrastructure layer: server hardening, Docker installation, Nginx reverse proxy, firewall rules, Node Exporter, and automated app deployment.
+
+Together, both repositories demonstrate an end-to-end workflow: build a service, package it as a container, expose operational endpoints, then deploy it onto a hardened Linux server with automation.
+
 ## What It Does
 
-- Periodically checks a list of URLs (configurable interval, per-target or global)
-- Records HTTP status code, latency, and up/down result to SQLite
-- Serves a built-in web dashboard at `/`
-- Exposes a REST API for managing targets and querying history
-- Exports a `/metrics` endpoint for Prometheus scraping
-- Sends webhook alerts (Slack / Discord) when a target goes down — with a **5-minute cooldown** to prevent alert spam
-- Validates all input — rejects empty names, empty URLs, and non-http/https schemes with a clear error response
-
----
+- Checks a list of URLs on a scheduled interval.
+- Stores check history, HTTP status code, latency, and up/down state in SQLite.
+- Provides a built-in dashboard at `/`.
+- Exposes a REST API for target management and history lookup.
+- Exposes `/metrics` for Prometheus scraping.
+- Provides `/healthz` for container and reverse-proxy health checks.
+- Sends Slack or Discord webhook alerts when a target goes down or recovers.
+- Uses a 5-minute alert cooldown per target to reduce alert noise.
+- Validates input for required names, valid URLs, and supported `http` / `https` schemes.
 
 ## Dashboard
 
 ![Dashboard](docs/dashboard.png)
 
----
+## Architecture
 
-## Prerequisites
+```text
+User / Browser
+    |
+    | HTTP
+    v
+Go Uptime Monitor
+    |-- Web dashboard: /
+    |-- REST API: /api/v1/*
+    |-- Health check: /healthz
+    |-- Prometheus metrics: /metrics
+    |
+    | scheduled checks
+    v
+Monitored URLs
 
-You only need **Docker** installed on your machine to run this project.
-
-### Install Docker
-
-**Ubuntu / Debian / WSL:**
-```bash
-sudo apt update
-sudo apt install -y ca-certificates curl gnupg
-sudo install -m 0755 -d /etc/apt/keyrings
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
-  https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo $VERSION_CODENAME) stable" \
-  | sudo tee /etc/apt/sources.list.d/docker.list
-sudo apt update
-sudo apt install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
-sudo usermod -aG docker $USER   # allow running docker without sudo
-newgrp docker                   # apply group change in current shell
+SQLite volume stores targets and check history.
+Webhook integration sends downtime and recovery alerts.
 ```
 
-**macOS:** Download and install [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+## Tech Stack
 
-**Windows:** Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) (WSL 2 backend recommended)
-
-Verify:
-```bash
-docker --version         # e.g. Docker version 26.x.x
-docker compose version   # e.g. Docker Compose version v2.x.x
-```
-
----
+| Area | Implementation |
+|------|----------------|
+| Language | Go 1.22 |
+| Web framework | Echo |
+| Storage | SQLite |
+| Metrics | Prometheus client |
+| Packaging | Docker, Docker Compose |
+| Alerts | Slack / Discord webhook |
+| Deployment target | Linux server via Ansible |
 
 ## Quick Start
 
-### Option A — Pull from GHCR (recommended)
-
-No build needed, just pull and run:
+### Option A: Pull from GHCR
 
 ```bash
 docker run -d \
@@ -79,20 +84,22 @@ docker run -d \
   ghcr.io/egayurcel990/go-uptime-monitor:latest
 ```
 
-Open **http://localhost:8080** in your browser.
+Open `http://localhost:8080`.
 
-### Option B — Docker Compose
+### Option B: Docker Compose
 
 ```bash
 git clone https://github.com/egayurcel990/go-uptime-monitor
 cd go-uptime-monitor
-cp .env.example .env     # edit .env if you want to customize
+cp .env.example .env
 docker compose up -d
 ```
 
-Open **http://localhost:8080** in your browser.
+Open `http://localhost:8080`.
 
-### Option C — Build and run locally (requires Go 1.22+)
+### Option C: Run Locally
+
+Requires Go 1.22+.
 
 ```bash
 git clone https://github.com/egayurcel990/go-uptime-monitor
@@ -101,59 +108,36 @@ go build -o bin/monitor ./cmd/monitor
 ./bin/monitor
 ```
 
----
-
-## Adding Your First Target
-
-Once the app is running, add a URL to monitor:
+## Add a Target
 
 ```bash
 curl -X POST http://localhost:8080/api/v1/targets \
   -H "Content-Type: application/json" \
-  -d '{"name": "My Site", "url": "https://example.com", "interval": 60}'
+  -d '{"name": "Example", "url": "https://example.com", "interval": 60}'
 ```
 
-The dashboard will automatically refresh and show your new target. You can also trigger an immediate check:
+Trigger an immediate check:
 
 ```bash
-# Replace 1 with the target ID returned above
 curl -X POST http://localhost:8080/api/v1/targets/1/check
 ```
 
----
-
-## API Endpoints
+## API Reference
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `GET` | `/api/v1/targets` | List all monitored targets |
-| `POST` | `/api/v1/targets` | Add a new target URL |
+| `GET` | `/api/v1/targets` | List monitored targets |
+| `POST` | `/api/v1/targets` | Add a target |
 | `DELETE` | `/api/v1/targets/:id` | Remove a target |
-| `GET` | `/api/v1/targets/:id/history` | Get check history (last 100) |
-| `POST` | `/api/v1/targets/:id/check` | Trigger an immediate check |
-| `GET` | `/api/v1/status` | Overall uptime summary (24h window) |
+| `GET` | `/api/v1/targets/:id/history` | Return latest check history |
+| `POST` | `/api/v1/targets/:id/check` | Run a manual check |
+| `GET` | `/api/v1/status` | Return 24-hour uptime summary |
 | `GET` | `/metrics` | Prometheus metrics |
 | `GET` | `/healthz` | Health check |
 
----
-
-## Input Validation
-
-The API enforces the following rules on `POST /api/v1/targets`:
-
-| Rule | Error response |
-|------|----------------|
-| `name` is empty | `{"error": "name is required"}` |
-| `url` is empty | `{"error": "url is required"}` |
-| `url` is not `http` or `https` | `{"error": "url must be a valid http or https URL"}` |
-
-All validation errors return HTTP `400 Bad Request`.
-
----
-
 ## Configuration
 
-All options are set via environment variables (or `.env` file):
+Configuration is loaded from environment variables or `.env`.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -161,91 +145,85 @@ All options are set via environment variables (or `.env` file):
 | `DB_PATH` | `/data/uptime.db` | SQLite database path |
 | `CHECK_INTERVAL` | `60` | Default check interval in seconds |
 | `CHECK_TIMEOUT` | `10` | HTTP request timeout in seconds |
-| `WEBHOOK_URL` | — | Slack or Discord webhook URL for alerts |
-
-### Webhook Alerts
-
-Set `WEBHOOK_URL` to a Slack or Discord incoming webhook to receive alerts when a target goes down. Alerts have a **5-minute cooldown per target** to prevent spam — you'll get one notification when it goes down, and another when it recovers.
-
-**Slack:** Create an incoming webhook at https://api.slack.com/messaging/webhooks
-
-**Discord:** Go to your server → Edit Channel → Integrations → Webhooks → New Webhook → Copy URL
-
----
-
-## Stopping and Removing
-
-```bash
-# Stop the container
-docker stop uptime-monitor
-
-# Start it again (data is preserved)
-docker start uptime-monitor
-
-# Remove container and data completely
-docker rm -f uptime-monitor
-docker volume rm uptime_data
-```
-
----
-
-## Project Structure
-
-```
-go-uptime-monitor/
-├── cmd/
-│   └── monitor/
-│       └── main.go             # Entry point
-├── internal/
-│   ├── config/                 # Env-based configuration
-│   ├── handler/                # HTTP handlers (Echo) + input validation
-│   ├── checker/                # URL check logic + scheduler
-│   ├── repository/             # SQLite data access layer
-│   ├── model/                  # Domain types (Target, CheckResult, UptimeSummary)
-│   ├── alert/                  # Webhook alert sender (5-min cooldown)
-│   └── metrics/                # Prometheus metrics registration
-├── web/
-│   └── index.html              # Built-in dashboard
-├── docs/                       # Screenshots
-├── Dockerfile
-├── docker-compose.yml
-├── .env.example
-├── Makefile
-└── README.md
-```
-
----
-
-## Makefile Commands
-
-```bash
-make build    # Compile binary to bin/monitor
-make run      # Run locally with go run
-make test     # Run unit tests
-make docker   # Build Docker image
-make lint     # Run golangci-lint
-```
-
----
+| `WEBHOOK_URL` | empty | Slack or Discord webhook URL |
 
 ## Prometheus Metrics
 
 | Metric | Type | Description |
 |--------|------|-------------|
-| `uptime_check_duration_seconds` | Histogram | HTTP check latency per target |
-| `uptime_check_up` | Gauge | 1 = up, 0 = down per target |
-| `uptime_checks_total` | Counter | Total checks performed per target |
+| `uptime_check_duration_seconds` | Histogram | HTTP check latency by target |
+| `uptime_check_up` | Gauge | `1` for up, `0` for down |
+| `uptime_checks_total` | Counter | Total checks by target |
 
-Pair with Grafana for a full monitoring dashboard.
+## Input Validation
 
----
+`POST /api/v1/targets` rejects invalid payloads with `400 Bad Request`.
+
+| Rule | Error response |
+|------|----------------|
+| Missing `name` | `{"error": "name is required"}` |
+| Missing `url` | `{"error": "url is required"}` |
+| URL is not `http` or `https` | `{"error": "url must be a valid http or https URL"}` |
+
+## Operational Notes
+
+- The container stores SQLite data in `/data`, which should be mounted as a volume.
+- `/healthz` can be used by Docker, Nginx, or external uptime checks.
+- `/metrics` can be scraped by Prometheus or a compatible monitoring system.
+- Webhook alerts include downtime and recovery events, with cooldown handling to avoid repeated spam.
 
 ## Deployment
 
-This service is designed to be deployed via [ansible-server-bootstrap](https://github.com/egayurcel990/ansible-server-bootstrap), which sets up a hardened Ubuntu server with Nginx reverse proxy, UFW firewall, and Docker — then pulls and runs this image automatically.
+This app is designed to be deployed by [`ansible-server-bootstrap`](https://github.com/egayurcel990/ansible-server-bootstrap). The Ansible project provisions an Ubuntu server, installs Docker, configures Nginx and UFW, installs Node Exporter, then pulls and runs this container image.
+
+## Project Structure
+
+```text
+go-uptime-monitor/
+|-- cmd/monitor/              # Application entry point
+|-- internal/alert/           # Webhook alert logic
+|-- internal/checker/         # URL checking and scheduler
+|-- internal/config/          # Environment-based configuration
+|-- internal/handler/         # Echo routes and request handlers
+|-- internal/metrics/         # Prometheus metric registration
+|-- internal/model/           # Domain models
+|-- internal/repository/      # SQLite repository layer
+|-- web/                      # Built-in dashboard
+|-- docs/                     # Screenshots
+|-- Dockerfile
+|-- docker-compose.yml
+|-- Makefile
+`-- README.md
+```
+
+## Make Commands
+
+```bash
+make build       # Build binary to bin/monitor
+make run         # Run with go run
+make test        # Run tests
+make docker      # Build Docker image
+make docker-run  # Start with Docker Compose
+```
+
+## What This Demonstrates
+
+- Backend service design with Go.
+- Containerized application delivery.
+- Persistent storage with SQLite volume mapping.
+- REST API and dashboard exposure.
+- Prometheus-ready operational metrics.
+- Basic production readiness through health checks, alerting, and infrastructure automation.
+
+## Roadmap
+
+- Add authentication for dashboard and API access.
+- Add Grafana dashboard examples for exported metrics.
+- Add GitHub Actions workflow for build, test, and image publishing.
+- Add automated tests for handlers, checker logic, and repository behavior.
 
 ---
 
 <p align="center">
-  <i>Deployed via <a href="https://github.com/egayurcel990/ansible-server-bootstrap">ansible-server-bootstrap</a> · Ega Yurcel Satriaji · 2025</i>
+  <i>Application layer for a DevOps and SysAdmin portfolio lab by Ega Yurcel Satriaji.</i>
 </p>
