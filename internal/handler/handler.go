@@ -6,11 +6,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/egayurcel990/go-uptime-monitor/internal/checker"
-	"github.com/egayurcel990/go-uptime-monitor/internal/model"
-	"github.com/egayurcel990/go-uptime-monitor/internal/repository"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"github.com/marquisccel/go-uptime-monitor/internal/checker"
+	"github.com/marquisccel/go-uptime-monitor/internal/model"
+	"github.com/marquisccel/go-uptime-monitor/internal/repository"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
