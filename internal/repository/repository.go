@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"time"
 
-	"github.com/egayurcel990/go-uptime-monitor/internal/model"
+	"github.com/marquisccel/go-uptime-monitor/internal/model"
 )
 
 type Repository struct{ db *sql.DB }

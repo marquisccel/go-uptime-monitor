@@ -18,7 +18,7 @@
 This project is part of a DevOps and SysAdmin portfolio lab:
 
 - `go-uptime-monitor` is the application layer: API, dashboard, persistence, health checks, metrics, and alerting.
-- [`ansible-server-bootstrap`](https://github.com/egayurcel990/ansible-server-bootstrap) is the infrastructure layer: server hardening, Docker installation, Nginx reverse proxy, firewall rules, Node Exporter, and automated app deployment.
+- [`ansible-server-bootstrap`](https://github.com/marquisccel/ansible-server-bootstrap) is the infrastructure layer: server hardening, Docker installation, Nginx reverse proxy, firewall rules, Node Exporter, and automated app deployment.
 
 Together, both repositories demonstrate an end-to-end workflow: build a service, package it as a container, expose operational endpoints, then deploy it onto a hardened Linux server with automation.
 
@@ -81,7 +81,7 @@ docker run -d \
   -p 127.0.0.1:8080:8080 \
   -e CHECK_INTERVAL=60 \
   -v uptime_data:/data \
-  ghcr.io/egayurcel990/go-uptime-monitor:latest
+  ghcr.io/marquisccel/go-uptime-monitor:latest
 ```
 
 Open `http://localhost:8080`.
@@ -89,7 +89,7 @@ Open `http://localhost:8080`.
 ### Option B: Docker Compose
 
 ```bash
-git clone https://github.com/egayurcel990/go-uptime-monitor
+git clone https://github.com/marquisccel/go-uptime-monitor
 cd go-uptime-monitor
 cp .env.example .env
 docker compose up -d
@@ -102,7 +102,7 @@ Open `http://localhost:8080`.
 Requires Go 1.22+.
 
 ```bash
-git clone https://github.com/egayurcel990/go-uptime-monitor
+git clone https://github.com/marquisccel/go-uptime-monitor
 cd go-uptime-monitor
 go build -o bin/monitor ./cmd/monitor
 ./bin/monitor
@@ -174,7 +174,7 @@ Configuration is loaded from environment variables or `.env`.
 
 ## Deployment
 
-This app is designed to be deployed by [`ansible-server-bootstrap`](https://github.com/egayurcel990/ansible-server-bootstrap). The Ansible project provisions an Ubuntu server, installs Docker, configures Nginx and UFW, installs Node Exporter, then pulls and runs this container image.
+This app is designed to be deployed by [`ansible-server-bootstrap`](https://github.com/marquisccel/ansible-server-bootstrap). The Ansible project provisions an Ubuntu server, installs Docker, configures Nginx and UFW, installs Node Exporter, then pulls and runs this container image.
 
 ## Project Structure
 

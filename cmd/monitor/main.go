@@ -3,13 +3,13 @@ package main
 import (
 	"log"
 
-	"github.com/egayurcel990/go-uptime-monitor/internal/alert"
-	"github.com/egayurcel990/go-uptime-monitor/internal/checker"
-	"github.com/egayurcel990/go-uptime-monitor/internal/config"
-	"github.com/egayurcel990/go-uptime-monitor/internal/handler"
-	"github.com/egayurcel990/go-uptime-monitor/internal/metrics"
-	"github.com/egayurcel990/go-uptime-monitor/internal/repository"
 	"github.com/joho/godotenv"
+	"github.com/marquisccel/go-uptime-monitor/internal/alert"
+	"github.com/marquisccel/go-uptime-monitor/internal/checker"
+	"github.com/marquisccel/go-uptime-monitor/internal/config"
+	"github.com/marquisccel/go-uptime-monitor/internal/handler"
+	"github.com/marquisccel/go-uptime-monitor/internal/metrics"
+	"github.com/marquisccel/go-uptime-monitor/internal/repository"
 )
 
 func main() {

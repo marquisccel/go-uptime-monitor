@@ -1,4 +1,4 @@
-module github.com/egayurcel990/go-uptime-monitor
+module github.com/marquisccel/go-uptime-monitor
 
 go 1.22
 

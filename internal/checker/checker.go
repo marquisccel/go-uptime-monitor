@@ -6,11 +6,11 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/egayurcel990/go-uptime-monitor/internal/alert"
-	"github.com/egayurcel990/go-uptime-monitor/internal/config"
-	"github.com/egayurcel990/go-uptime-monitor/internal/metrics"
-	"github.com/egayurcel990/go-uptime-monitor/internal/model"
-	"github.com/egayurcel990/go-uptime-monitor/internal/repository"
+	"github.com/marquisccel/go-uptime-monitor/internal/alert"
+	"github.com/marquisccel/go-uptime-monitor/internal/config"
+	"github.com/marquisccel/go-uptime-monitor/internal/metrics"
+	"github.com/marquisccel/go-uptime-monitor/internal/model"
+	"github.com/marquisccel/go-uptime-monitor/internal/repository"
 )
 
 type Checker struct {
